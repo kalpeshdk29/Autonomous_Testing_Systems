@@ -1,4 +1,13 @@
-from datetime import datetime
+"""
+Represents:
+
+State A
+    +
+Action
+    =
+State B
+"""
+
 from pydantic import BaseModel
 
 from core.models.action import Action
@@ -14,6 +23,4 @@ class Transition(BaseModel):
 
     success: bool = True
 
-    duration: float = 0.0
-
-    timestamp: datetime = datetime.now()
+    duration: float = 0

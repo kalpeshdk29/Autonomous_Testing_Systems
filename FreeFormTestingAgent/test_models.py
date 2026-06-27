@@ -1,6 +1,7 @@
 from core.models.state import ApplicationState
 from core.models.action import Action, ActionType
 from core.state.state_hasher import create_state_hash
+from agent.explorer.action_discovery import ActionDiscovery
 
 state = ApplicationState(
     window_title="Calculator",
@@ -20,8 +21,14 @@ action = Action(
     target="btn_7"
 )
 
-print(state)
+discover = ActionDiscovery()
+
+actions = discover.discover(
+    state.controls
+)
+
 print()
-print(action)
-print()
-print(state.state_hash)
+
+for a in actions:
+    print(a)
+

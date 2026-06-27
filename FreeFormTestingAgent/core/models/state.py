@@ -1,6 +1,9 @@
 from uuid import uuid4
 from datetime import datetime
 from pydantic import BaseModel, Field
+from core.models.ui_control import UIControl
+from core.models.action import Action
+
 
 class ApplicationState(BaseModel):
 
@@ -14,11 +17,11 @@ class ApplicationState(BaseModel):
 
     window_title: str = ""
 
-    controls: list = []
+    controls: list[UIControl] = []
 
     values: dict = {}
 
-    available_actions: list = []
+    available_actions: list[Action] = []
 
     screenshot_path: str | None = None
 

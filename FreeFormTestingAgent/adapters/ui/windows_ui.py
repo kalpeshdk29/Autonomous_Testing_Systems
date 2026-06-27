@@ -3,8 +3,12 @@
 import subprocess
 import time
 import uiautomation as auto
-
 from core.models.state import ApplicationState
+from core.models.ui_control import UIControl
+from agent.explorer.action_discovery import ActionDiscovery
+
+
+
 
 class WindowsUIAdapter:
 
@@ -45,20 +49,36 @@ class WindowsUIAdapter:
 
 
     def capture_state(
-        self,
-        window
+            self,
+            window
     ):
 
-        controls = self.get_controls(window)
+        controls = self.get_controls(
+            window
+        )
+
+        values = self.get_values(
+            controls
+        )
 
         state = ApplicationState(
             window_title=window.Name,
-            controls=controls
+            controls=controls,
+            values=values
+        )
+
+        discover = ActionDiscovery()
+
+        state.available_actions = (
+            discover.discover(
+                state.controls
+            )
         )
 
         return state
 
     def get_all_controls(
+        
             self,
             control,
             depth=0,
@@ -72,23 +92,22 @@ class WindowsUIAdapter:
         try:
 
             controls.append(
-                {
-                    "automation_id":
-                        control.AutomationId,
+                        UIControl(
+                            automation_id=
+                                control.AutomationId,
 
-                    "name":
-                        control.Name,
+                            name=
+                                control.Name,
 
-                    "type":
-                        control.ControlTypeName,
+                            control_type=
+                                control.ControlTypeName,
 
-                    "class":
-                        control.ClassName,
+                            class_name=
+                                control.ClassName,
 
-                    "depth":
-                        depth
-                }
-            )
+                            depth=depth
+                        )
+                    )
 
         except Exception:
             pass
@@ -109,3 +128,41 @@ class WindowsUIAdapter:
             pass
 
         return controls
+    
+    """
+    Extract dynamic application values from the UI.
+
+    These values become part of the ApplicationState and
+    are used for state comparison and hashing.
+    """
+    def get_values(
+            self,
+            controls
+    ) -> dict:
+
+        values = {}
+
+        for control in controls:
+
+            # Calculator expression
+            if control.automation_id == "CalculatorExpression":
+
+                values["expression"] = (
+                    control.name
+                )
+
+            # Calculator display
+            elif control.automation_id == "CalculatorResults":
+
+                values["display"] = (
+                    control.name
+                )
+
+            # Raw numeric output
+            elif control.automation_id == "NormalOutput":
+
+                values["output"] = (
+                    control.name
+                )
+
+        return values
