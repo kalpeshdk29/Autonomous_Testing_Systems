@@ -1,0 +1,15 @@
+pywinauto
+uiautomation
+networkx
+sqlalchemy
+pydantic
+pillow
+opencv-python
+numpy
+ollama
+rich
+typer
+python-dotenv
+loguru
+pytest
+pytest-asyncio
