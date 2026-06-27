@@ -1,0 +1,2 @@
+# Autonomous_Testing_Systems
+ The Free Form Testing Agent (FFTA) is an autonomous software testing system capable of exploring unknown applications without predefined test cases. Unlike traditional automated testing frameworks that require manually authored test scripts, the Free Form Testing Agent uses exploration strategies, state modeling, artificial intelligence, and validation heuristics to discover application behavior, identify defects, and automatically generate reproducible test cases
