@@ -13,9 +13,11 @@ Transition
 StateGraph
 """
 
+from core.models.state_node import StateNode
 from core.models.state import ApplicationState
 from core.models.transition import Transition
-
+from core.graph.graph_search import GraphSearch
+import uuid
 
 class StateGraph:
     """
@@ -30,37 +32,57 @@ class StateGraph:
 
     def __init__(self):
 
-        # state_hash -> ApplicationState
+         # state_id -> StateNode
         self.states = {}
 
-        # list of transitions
-        self.transitions = []
+        # hash -> state_id
+        self.hash_index = {}
+
+        # source_state -> list[Transition]
+        self.edges = {}
 
     def add_state(
-            self,
-            state: ApplicationState
-    ):
-        """
-        Add a state to the graph.
+        self,
+        state: ApplicationState
+    ) -> str:
 
-        Duplicate states are ignored.
-        """
+        if state.state_hash in self.hash_index:
 
-        self.states[
-            state.state_hash
-        ] = state
+            state_id = self.hash_index[state.state_hash]
 
+            self.states[state_id].visit()
+
+            return state_id
+
+        node = StateNode(state)
+
+        self.states[state.state_id] = node
+
+        self.hash_index[state.state_hash] = state.state_id
+
+        self.edges[state.state_id] = []
+
+        return state.state_id
+        
     def add_transition(
-            self,
-            transition: Transition
-    ):
-        """
-        Add a transition to the graph.
-        """
+        self,
+        source_id,
+        action,
+        target_id,
+        success=True,
+        duration=0.0):
 
-        self.transitions.append(
-            transition
+        transition = Transition(
+            source_state=source_id,
+            target_state=target_id,
+            action=action,
+            success=success,
+            duration=duration
         )
+
+        self.edges[source_id].append(transition)
+
+        return transition
 
     def has_state(
             self,
@@ -70,33 +92,104 @@ class StateGraph:
         Check if state already exists.
         """
 
-        return (
-            state_hash
-            in self.states
-        )
+        return state_hash in self.hash_index
+
+    def get_state(self, state_id):
+
+        return self.states.get(state_id)
+
+    def get_neighbors(self, state_id):
+
+        return [
+            t.target_state
+            for t in self.edges.get(state_id, [])
+        ]
 
     def print_graph(self):
+
+        print("\n===== GRAPH =====\n")
+
+        for source, transitions in self.edges.items():
+
+            print(source)
+
+            for t in transitions:
+
+                print(
+                    f"   --{t.action}--> "
+                    f"{t.target_state}"
+                )
+
+    def find_path(
+        self,
+        source_state: str,
+        target_state: str
+    ) -> list[str] | None:
         """
-        Print the discovered state graph.
+        Find shortest path between two states.
+
+        Parameters
+        ----------
+        source_state : str
+            Starting state ID.
+
+        target_state : str
+            Destination state ID.
+
+        Returns
+        -------
+        list[str]
+            Ordered list of state IDs.
+
+        None
+            If no path exists.
+
+        Example
+        -------
+
+            S0 -> S1 -> S2 -> S3
+
+        returns:
+
+            ["S0","S1","S2","S3"]
         """
 
-        print("\n===== STATES =====\n")
+        return GraphSearch.bfs(
+            self,
+            source_state,
+            target_state
+        )
+    
 
-        for state in self.states.values():
+    def find_transition_path(
+        self,
+        source_state: str,
+        target_state: str
+    ):
+        """
+        Find shortest transition sequence between
+        two states.
 
-            print(
-                state.state_hash[:8],
-                state.values
-            )
+        Returns
+        -------
+        list[Transition]
+            Ordered transitions.
 
-        print("\n===== TRANSITIONS =====\n")
+        Example
+        -------
 
-        for transition in self.transitions:
+            S0 --7--> S1 --+--> S2
 
-            print(
-                f"{transition.source_state[:8]}"
-                f" -- "
-                f"{transition.action.description}"
-                f" --> "
-                f"{transition.target_state[:8]}"
-            )
+        returns
+
+            [
+                Transition(...),
+                Transition(...)
+            ]
+        """
+
+        return GraphSearch.bfs_transition_path(
+            self,
+            source_state,
+            target_state
+        )

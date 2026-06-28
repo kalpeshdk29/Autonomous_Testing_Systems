@@ -21,3 +21,16 @@ class Action(BaseModel):
     value : str | None= None
     timestamp: datetime = Field(default_factory = datetime.now)
     description : str | None = None
+
+    def __str__(self):
+        """
+        Human readable representation.
+
+        Example:
+            CLICK(num7Button)
+        """
+
+        return (
+            f"{self.action_type.value}"
+            f"({self.target})"
+        )

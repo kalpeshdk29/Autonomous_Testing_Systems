@@ -8,19 +8,18 @@ Action
 State B
 """
 
-from pydantic import BaseModel
+from dataclasses import dataclass
+from typing import Any
 
-from core.models.action import Action
 
-
-class Transition(BaseModel):
+@dataclass
+class Transition:
 
     source_state: str
-
     target_state: str
 
-    action: Action
+    action: Any
 
     success: bool = True
 
-    duration: float = 0
+    duration: float = 0.0
