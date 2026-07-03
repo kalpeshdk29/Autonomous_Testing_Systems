@@ -129,6 +129,34 @@ class WindowsUIAdapter:
 
         return controls
     
+    def kill_application(
+        self
+    ):
+        """
+        Kill current application.
+        """
+
+        subprocess.run(
+            [
+                "taskkill",
+                "/F",
+                "/IM",
+                "CalculatorApp.exe"
+            ],
+            capture_output=True
+        )
+
+        subprocess.run(
+            [
+                "taskkill",
+                "/F",
+                "/IM",
+                "calc.exe"
+            ],
+            capture_output=True
+        )
+
+
     """
     Extract dynamic application values from the UI.
 

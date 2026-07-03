@@ -1,5 +1,21 @@
 """
-Calculator test fixture.
+File: calculator_fixture.py
+
+Purpose:
+    Provide a fresh calculator instance
+    for integration tests.
+
+Architecture:
+
+Test
+   ↓
+CalculatorFixture
+   ↓
+Launch Calculator
+   ↓
+Return UI + Window
+   ↓
+Cleanup Calculator
 """
 
 import subprocess
@@ -10,56 +26,79 @@ from adapters.ui.windows_ui import (
 )
 
 
-def start_calculator():
+class CalculatorFixture:
     """
-    Start a fresh calculator instance.
-    """
+    Calculator test fixture.
 
-    subprocess.Popen(
-        ["calc.exe"]
-    )
+    Example
+    -------
 
-    time.sleep(1)
-
-    ui = WindowsUIAdapter()
-
-    window = ui.connect_window(
-        "Calculator"
-    )
-
-    return ui, window
-
-
-def stop_calculator():
-    """
-    Kill all calculator processes.
+        with CalculatorFixture() as (
+            ui,
+            window
+        ):
+            ...
     """
 
-    subprocess.run(
-        [
-            "taskkill",
-            "/F",
-            "/IM",
-            "CalculatorApp.exe"
-        ],
-        capture_output=True
-    )
+    def __enter__(self):
+        """
+        Start fresh calculator.
+        """
 
-    subprocess.run(
-        [
-            "taskkill",
-            "/F",
-            "/IM",
+        self._kill_calculator()
+
+        self.ui = WindowsUIAdapter()
+
+        self.ui.launch_application(
             "calc.exe"
-        ],
-        capture_output=True
-    )
+        )
 
-def get_calculator():
-    """
-    Return a fresh calculator instance.
-    """
+        time.sleep(1)
 
-    stop_calculator()
+        self.window = (
+            self.ui.connect_window(
+                "Calculator"
+            )
+        )
 
-    return start_calculator()
+        return (
+            self.ui,
+            self.window
+        )
+
+    def __exit__(
+        self,
+        exc_type,
+        exc_val,
+        exc_tb
+    ):
+        """
+        Cleanup calculator.
+        """
+
+        self._kill_calculator()
+
+    def _kill_calculator(self):
+        """
+        Kill all calculator processes.
+        """
+
+        subprocess.run(
+            [
+                "taskkill",
+                "/F",
+                "/IM",
+                "CalculatorApp.exe"
+            ],
+            capture_output=True
+        )
+
+        subprocess.run(
+            [
+                "taskkill",
+                "/F",
+                "/IM",
+                "calc.exe"
+            ],
+            capture_output=True
+        )

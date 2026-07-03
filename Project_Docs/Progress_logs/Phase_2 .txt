@@ -1,0 +1,25 @@
+PHASE 1
+========
+
+✓ UI Adapter
+✓ State Capture
+✓ State Hashing
+✓ Action Discovery
+✓ Action Execution
+✓ Exploration Memory
+✓ State Graph
+✓ Graph Search
+✓ Transition Engine
+✓ Testing Infrastructure
+
+
+PHASE 2
+========
+
+✓ Explorer Framework
+✓ BFS Explorer
+✓ Action Filtering
+
+NEXT:
+
+► Replay Engine

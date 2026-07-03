@@ -1,0 +1,1 @@
+2026-06-28 15:26:44.606 action_executor.py[114] _click -> Can not move cursor. MenuItemControl's BoundingRectangle is (0,0,0,0)[0x0]. SearchProperties: {AutomationId: ''}
