@@ -43,24 +43,95 @@ class StateGraph:
 
     def add_state(
         self,
-        state: ApplicationState
+        state: ApplicationState,
+        depth: int = 0
     ) -> str:
+        """
+        Add an application state to the graph.
+
+        Parameters
+        ----------
+        state:
+            Application state to store.
+
+        depth:
+            Candidate depth of the state.
+
+            Root state:
+
+                depth = 0
+
+            Child state:
+
+                source depth + 1
+
+        Returns
+        -------
+        str:
+            ID of the stored state.
+
+        Behavior
+        --------
+        New state:
+            Create a StateNode using the provided depth.
+
+        Existing state:
+            Increment visit count.
+
+            Update depth only when the newly discovered
+            path is shorter.
+        """
+
+        # =====================================================
+        # CASE 1
+        # State already exists
+        # =====================================================
 
         if state.state_hash in self.hash_index:
 
-            state_id = self.hash_index[state.state_hash]
+            state_id = self.hash_index[
+                state.state_hash
+            ]
 
-            self.states[state_id].visit()
+            node = self.states[
+                state_id
+            ]
+
+            #
+            # Record another encounter.
+            #
+            node.visit()
+
+            #
+            # Preserve the shortest known depth.
+            #
+            node.update_depth(
+                depth
+            )
 
             return state_id
 
-        node = StateNode(state)
+        # =====================================================
+        # CASE 2
+        # New state
+        # =====================================================
 
-        self.states[state.state_id] = node
+        node = StateNode(
+            state,
+            depth=depth
+        )
 
-        self.hash_index[state.state_hash] = state.state_id
+        self.states[
+            state.state_id
+        ] = node
 
-        self.edges[state.state_id] = []
+        self.hash_index[
+            state.state_hash
+        ] = state.state_id
+
+        self.edges[
+            state.state_id
+        ] = []
 
         return state.state_id
         
@@ -160,6 +231,68 @@ class StateGraph:
             target_state
         )
     
+    def get_state_depth(
+        self,
+        state_id: str
+    ) -> int | None:
+        """
+        Return the shortest known depth of a state.
+
+        Parameters
+        ----------
+        state_id:
+            ID of the graph state.
+
+        Returns
+        -------
+        int:
+            State depth.
+
+        None:
+            State does not exist.
+        """
+
+        node = self.get_state(
+            state_id
+        )
+
+        if node is None:
+            return None
+
+        return node.depth
+
+    def update_state_depth(
+        self,
+        state_id: str,
+        depth: int
+    ) -> bool:
+        """
+        Attempt to update a state's depth.
+
+        The depth is changed only when the provided depth
+        is shorter than the currently known depth.
+
+        Returns
+        -------
+        bool:
+            True when depth changed.
+
+            False when:
+                - state does not exist
+                - existing depth is already shorter
+                - depths are equal
+        """
+
+        node = self.get_state(
+            state_id
+        )
+
+        if node is None:
+            return False
+
+        return node.update_depth(
+            depth
+        )
 
     def find_transition_path(
         self,

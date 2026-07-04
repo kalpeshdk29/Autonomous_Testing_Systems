@@ -22,7 +22,7 @@ Target State
 """
 
 import time
-
+from core.state.state_hasher import create_state_hash
 
 class ReplayEngine:
     """
@@ -142,7 +142,7 @@ class ReplayEngine:
             if not success:
 
                 print(
-                    "Replay failed."
+                   "Replay action execution failed."
                 )
 
                 return None
@@ -150,6 +150,71 @@ class ReplayEngine:
         print()
         print(
             "Replay complete."
+        )
+
+        # =====================================================
+        # Replay Verification
+        # =====================================================
+
+        print()
+        print("===== VERIFY REPLAY =====")
+
+        # Retrieve the target state that was originally
+        # discovered and stored inside the graph.
+        target_node = self.graph.get_state(
+            target_state
+        )
+
+        if target_node is None:
+
+            print(
+                f"Target state not found in graph: "
+                f"{target_state}"
+            )
+
+            return None
+
+        expected_state = target_node.state
+
+        # Capture the real application state after all
+        # replay actions have been executed.
+        actual_state = self.ui.capture_state(
+            window
+        )
+
+        # Generate the same deterministic hash used
+        # during the original exploration.
+        actual_state.state_hash = create_state_hash(
+            actual_state
+        )
+
+        print(
+            "Expected:",
+            expected_state.state_hash
+        )
+
+        print(
+            "Actual:  ",
+            actual_state.state_hash
+        )
+
+        # The replay is successful only when the real
+        # application reaches the expected target state.
+        if (
+            actual_state.state_hash
+            != expected_state.state_hash
+        ):
+
+            print()
+            print(
+                "Replay verification failed."
+            )
+
+            return None
+
+        print()
+        print(
+            "Replay verified successfully."
         )
 
         return window

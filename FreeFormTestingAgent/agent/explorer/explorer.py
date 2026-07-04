@@ -2,7 +2,8 @@
 File: explorer.py
 
 Purpose:
-    Base explorer interface.
+    Defines the common interface for all
+    application exploration strategies.
 """
 
 from abc import ABC
@@ -11,16 +12,20 @@ from abc import abstractmethod
 
 class Explorer(ABC):
     """
-    Base explorer.
+    Base interface for application explorers.
     """
 
     @abstractmethod
     def explore(
         self,
-        window,
-        max_states: int = 100
+        window
     ):
         """
-        Explore application.
+        Explore the connected application.
+
+        Parameters
+        ----------
+        window:
+            Initial connected application window.
         """
         pass

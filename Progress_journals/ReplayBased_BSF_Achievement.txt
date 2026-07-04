@@ -1,0 +1,39 @@
+We have now proven:
+
+✓ Zero-step replay
+✓ One-step replay
+✓ Multi-step replay
+✓ Replay hash verification
+✓ Replay-aware BFS exploration
+
+The explorer can now restore the correct source state before executing each action. That fixes the fundamental flaw in BFS V1.
+
+What changed architecturally
+
+Before:
+
+S0 --A--> S1 --B--> S2 --C--> S3
+
+The real application kept moving forward even when the graph claimed actions belonged to the same source state.
+
+Now:
+
+           --A--> S1
+          /
+S0 ------- --B--> S2
+          \
+           --C--> S3
+
+For every branch, the agent performs:
+
+Restore Source State
+        ↓
+Verify Source State
+        ↓
+Execute One Action
+        ↓
+Capture Result
+        ↓
+Store Transition
+
+That means the graph is now based on real observed branches, not incorrectly recorded sequential interactions.

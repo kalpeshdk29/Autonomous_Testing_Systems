@@ -44,7 +44,6 @@ class ExplorationContext:
         """
         Initialize exploration context.
         """
-
         #
         # BFS queue
         #
@@ -63,6 +62,16 @@ class ExplorationContext:
         self.total_actions = 0
 
         self.total_transitions = 0
+        
+        #
+        # Number of failed action executions.
+        #
+        self.total_failures = 0
+
+        #
+        # Reason why exploration stopped.
+        #
+        self.stop_reason = None
 
     def enqueue(
         self,

@@ -112,12 +112,14 @@ def test_replay_engine():
             )
         )
 
-        replay.replay(
+        replayed_window = replay.replay(
             "calc.exe",
             "Calculator",
             id0,
             id1
         )
+
+        assert replayed_window is not None
 
         print()
         print(

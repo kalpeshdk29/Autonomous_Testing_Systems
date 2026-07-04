@@ -1,0 +1,39 @@
+REAL APPLICATION
+      │
+      ▼
+WindowsUIAdapter
+      │
+      ▼
+Capture ApplicationState
+      │
+      ├──────────────► Discover Available Actions
+      │
+      ▼
+Create State Hash
+      │
+      ▼
+StateGraph.add_state()
+      │
+      ▼
+BFS Explorer
+      │
+      ├──► ExplorationMemory
+      │        "Was this action already tried here?"
+      │
+      ├──► ActionFilter
+      │        "Is this action safe to explore?"
+      │
+      ▼
+ActionExecutor
+      │
+      ▼
+Application Changes
+      │
+      ▼
+Capture New State
+      │
+      ▼
+Store Transition
+      │
+      ▼
+State Graph Grows
