@@ -49,48 +49,186 @@ State Classification:
     Unexplored:         1
 """
 
-from core.graph.state_graph import (
-    StateGraph
-)
+from core.graph.state_graph import StateGraph
 
-from core.models.state import (
-    ApplicationState
-)
+from core.models.state import ApplicationState
 
-from core.models.action import (
-    Action
-)
+from core.models.action import Action
 
-from core.models.action import (
-    ActionType
-)
+from core.models.action_type import ActionType
 
-from agent.memory.exploration_memory import (
-    ExplorationMemory
-)
+from agent.memory.exploration_memory import ExplorationMemory
 
-from agent.coverage.coverage_engine import (
-    CoverageEngine
-)
+from agent.coverage.coverage_engine import CoverageEngine
+
+class TestActionFilter:
+    """
+    Controlled filter used to verify eligible coverage.
+
+    Allowed:
+        A
+        C
+
+    Blocked:
+        B
+    """
+
+    ALLOWED_ACTIONS = {
+        "A",
+        "C",
+    }
+
+    def allow(
+        self,
+        action
+    ) -> bool:
+        """
+        Allow only controlled test actions.
+        """
+
+        return (
+            action.target
+            in
+            self.ALLOWED_ACTIONS
+        )
 
 
-def create_action(
-    target: str
-) -> Action:
+def test_eligible_state_coverage():
+    """
+    Verify the difference between raw and eligible coverage.
+
+    State S0:
+
+        A → explored → eligible
+        B → explored → blocked
+        C → unexplored → eligible
+
+    Raw Coverage:
+
+        2 / 3
+        66.67%
+
+    Eligible Coverage:
+
+        1 / 2
+        50%
+    """
+
+    (
+        graph,
+        memory,
+        state0_id,
+        _,
+        _
+    ) = create_test_environment()
+
+    engine = CoverageEngine(
+        graph,
+        memory,
+        action_filter=TestActionFilter()
+    )
+
+    coverage = (
+        engine.calculate_state_coverage(
+            state0_id
+        )
+    )
+
+    assert coverage is not None
+
+    # =====================================================
+    # Raw coverage
+    # =====================================================
+
+    assert coverage.total_actions == 3
+
+    assert coverage.explored_actions == 2
+
+    assert coverage.unexplored_actions == 1
+
+    assert (
+        coverage.coverage_percentage
+        == 66.67
+    )
+
+    # =====================================================
+    # Eligible coverage
+    # =====================================================
+
+    assert (
+        coverage.eligible_total_actions
+        == 2
+    )
+
+    assert (
+        coverage.eligible_explored_actions
+        == 1
+    )
+
+    assert (
+        coverage.eligible_unexplored_actions
+        == 1
+    )
+
+    assert (
+        coverage.eligible_coverage_percentage
+        == 50.0
+    )
+
+    print()
+    print(
+        "ELIGIBLE STATE COVERAGE TEST PASSED"
+    )
+
+def test_unexplored_eligible_states_query():
+    """
+    Verify that the Coverage Engine can find states
+    containing remaining eligible actions.
+    """
+
+    (
+        graph,
+        memory,
+        state0_id,
+        _,
+        _
+    ) = create_test_environment()
+
+    engine = CoverageEngine(
+        graph,
+        memory,
+        action_filter=TestActionFilter()
+    )
+
+    states = (
+        engine
+        .get_states_with_unexplored_eligible_actions()
+    )
+
+    state_ids = {
+        coverage.state_id
+
+        for coverage
+        in states
+    }
+
+    assert state0_id in state_ids
+
+    print()
+    print(
+        "ELIGIBLE UNEXPLORED STATES QUERY TEST PASSED"
+    )
+
+
+def create_action(target: str) -> Action:
     """
     Create a simple CLICK action for testing.
     """
 
-    return Action(
-        action_type=ActionType.CLICK,
-        target=target
-    )
+    return Action(action_type=ActionType.CLICK, target=target)
 
 
-def create_state(
-    state_hash: str,
-    actions: list[Action]
-) -> ApplicationState:
+def create_state(state_hash: str, actions: list[Action]) -> ApplicationState:
     """
     Create a controlled application state.
     """
@@ -98,7 +236,7 @@ def create_state(
     return ApplicationState(
         window_title="Test Application",
         state_hash=state_hash,
-        available_actions=actions
+        available_actions=actions,
     )
 
 
@@ -132,23 +270,14 @@ def create_test_environment():
             create_action("A"),
             create_action("B"),
             create_action("C"),
-        ]
+        ],
     )
 
-    state0_id = graph.add_state(
-        state0,
-        depth=0
-    )
+    state0_id = graph.add_state(state0, depth=0)
 
-    memory.mark_executed(
-        state0.state_hash,
-        "A"
-    )
+    memory.mark_executed(state0.state_hash, "A")
 
-    memory.mark_executed(
-        state0.state_hash,
-        "B"
-    )
+    memory.mark_executed(state0.state_hash, "B")
 
     # =====================================================
     # S1
@@ -162,13 +291,10 @@ def create_test_environment():
         [
             create_action("D"),
             create_action("E"),
-        ]
+        ],
     )
 
-    state1_id = graph.add_state(
-        state1,
-        depth=1
-    )
+    state1_id = graph.add_state(state1, depth=1)
 
     # =====================================================
     # S2
@@ -180,26 +306,14 @@ def create_test_environment():
         "state-2-hash",
         [
             create_action("F"),
-        ]
+        ],
     )
 
-    state2_id = graph.add_state(
-        state2,
-        depth=1
-    )
+    state2_id = graph.add_state(state2, depth=1)
 
-    memory.mark_executed(
-        state2.state_hash,
-        "F"
-    )
+    memory.mark_executed(state2.state_hash, "F")
 
-    return (
-        graph,
-        memory,
-        state0_id,
-        state1_id,
-        state2_id
-    )
+    return (graph, memory, state0_id, state1_id, state2_id)
 
 
 def test_partial_state_coverage():
@@ -211,24 +325,11 @@ def test_partial_state_coverage():
         66.67% coverage
     """
 
-    (
-        graph,
-        memory,
-        state0_id,
-        _,
-        _
-    ) = create_test_environment()
+    graph, memory, state0_id, _, _ = create_test_environment()
 
-    engine = CoverageEngine(
-        graph,
-        memory
-    )
+    engine = CoverageEngine(graph, memory)
 
-    coverage = (
-        engine.calculate_state_coverage(
-            state0_id
-        )
-    )
+    coverage = engine.calculate_state_coverage(state0_id)
 
     assert coverage is not None
 
@@ -238,20 +339,12 @@ def test_partial_state_coverage():
 
     assert coverage.unexplored_actions == 1
 
-    assert (
-        coverage.coverage_percentage
-        == 66.67
-    )
+    assert coverage.coverage_percentage == 66.67
 
-    assert (
-        coverage.is_partially_explored
-        is True
-    )
+    assert coverage.is_partially_explored is True
 
     print()
-    print(
-        "PARTIAL STATE COVERAGE TEST PASSED"
-    )
+    print("PARTIAL STATE COVERAGE TEST PASSED")
 
 
 def test_unexplored_state_coverage():
@@ -263,24 +356,11 @@ def test_unexplored_state_coverage():
         0% coverage
     """
 
-    (
-        graph,
-        memory,
-        _,
-        state1_id,
-        _
-    ) = create_test_environment()
+    graph, memory, _, state1_id, _ = create_test_environment()
 
-    engine = CoverageEngine(
-        graph,
-        memory
-    )
+    engine = CoverageEngine(graph, memory)
 
-    coverage = (
-        engine.calculate_state_coverage(
-            state1_id
-        )
-    )
+    coverage = engine.calculate_state_coverage(state1_id)
 
     assert coverage is not None
 
@@ -295,9 +375,7 @@ def test_unexplored_state_coverage():
     assert coverage.is_unexplored is True
 
     print()
-    print(
-        "UNEXPLORED STATE COVERAGE TEST PASSED"
-    )
+    print("UNEXPLORED STATE COVERAGE TEST PASSED")
 
 
 def test_fully_explored_state_coverage():
@@ -309,24 +387,11 @@ def test_fully_explored_state_coverage():
         100% coverage
     """
 
-    (
-        graph,
-        memory,
-        _,
-        _,
-        state2_id
-    ) = create_test_environment()
+    graph, memory, _, _, state2_id = create_test_environment()
 
-    engine = CoverageEngine(
-        graph,
-        memory
-    )
+    engine = CoverageEngine(graph, memory)
 
-    coverage = (
-        engine.calculate_state_coverage(
-            state2_id
-        )
-    )
+    coverage = engine.calculate_state_coverage(state2_id)
 
     assert coverage is not None
 
@@ -341,9 +406,7 @@ def test_fully_explored_state_coverage():
     assert coverage.is_fully_explored is True
 
     print()
-    print(
-        "FULL STATE COVERAGE TEST PASSED"
-    )
+    print("FULL STATE COVERAGE TEST PASSED")
 
 
 def test_global_coverage_report():
@@ -363,18 +426,9 @@ def test_global_coverage_report():
         Unexplored:          1
     """
 
-    (
-        graph,
-        memory,
-        _,
-        _,
-        _
-    ) = create_test_environment()
+    graph, memory, _, _, _ = create_test_environment()
 
-    engine = CoverageEngine(
-        graph,
-        memory
-    )
+    engine = CoverageEngine(graph, memory)
 
     report = engine.calculate_report()
 
@@ -386,31 +440,18 @@ def test_global_coverage_report():
 
     assert report.unexplored_actions == 3
 
-    assert (
-        report.action_coverage_percentage
-        == 50.0
-    )
+    assert report.action_coverage_percentage == 50.0
 
-    assert (
-        report.fully_explored_states
-        == 1
-    )
+    assert report.fully_explored_states == 1
 
-    assert (
-        report.partially_explored_states
-        == 1
-    )
+    assert report.partially_explored_states == 1
 
     assert report.unexplored_states == 1
 
-    assert len(
-        report.state_coverage
-    ) == 3
+    assert len(report.state_coverage) == 3
 
     print()
-    print(
-        "GLOBAL COVERAGE REPORT TEST PASSED"
-    )
+    print("GLOBAL COVERAGE REPORT TEST PASSED")
 
 
 def test_states_with_unexplored_actions():
@@ -420,29 +461,13 @@ def test_states_with_unexplored_actions():
     S2 is fully explored.
     """
 
-    (
-        graph,
-        memory,
-        state0_id,
-        state1_id,
-        _
-    ) = create_test_environment()
+    graph, memory, state0_id, state1_id, _ = create_test_environment()
 
-    engine = CoverageEngine(
-        graph,
-        memory
-    )
+    engine = CoverageEngine(graph, memory)
 
-    states = (
-        engine
-        .get_states_with_unexplored_actions()
-    )
+    states = engine.get_states_with_unexplored_actions()
 
-    state_ids = {
-        coverage.state_id
-        for coverage
-        in states
-    }
+    state_ids = {coverage.state_id for coverage in states}
 
     assert state0_id in state_ids
 
@@ -451,9 +476,7 @@ def test_states_with_unexplored_actions():
     assert len(state_ids) == 2
 
     print()
-    print(
-        "UNEXPLORED STATES QUERY TEST PASSED"
-    )
+    print("UNEXPLORED STATES QUERY TEST PASSED")
 
 
 def run_all_tests():
@@ -471,6 +494,10 @@ def run_all_tests():
 
     test_states_with_unexplored_actions()
 
+    test_eligible_state_coverage()
+
+    test_unexplored_eligible_states_query()
+
     print()
     print(
         "======================================"
@@ -483,7 +510,6 @@ def run_all_tests():
     print(
         "======================================"
     )
-
 
 if __name__ == "__main__":
 

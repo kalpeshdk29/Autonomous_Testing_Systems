@@ -1,0 +1,38 @@
+FOUNDATION
+✓ UI observation
+✓ State representation
+✓ State hashing
+✓ Action representation
+
+KNOWLEDGE
+✓ StateGraph
+✓ ExplorationMemory
+✓ Transition tracking
+✓ Deduplication
+
+EXECUTION
+✓ Action execution
+✓ Replay
+✓ Path reconstruction
+✓ Replay verification
+
+EXPLORATION
+✓ Replay-aware BFS
+✓ Exploration limits
+✓ Action filtering
+
+ANALYSIS
+✓ CoverageEngine
+✓ Eligible coverage
+✓ Remaining-work queries
+
+DECISION
+✓ ExplorationTargetSelector
+✓ Target ranking strategy
+✓ ActionSelector
+✓ Action ranking strategy
+
+AUTONOMY
+✓ Single Exploration Step
+✓ Exploration Coordinator
+✓ Autonomous closed loop

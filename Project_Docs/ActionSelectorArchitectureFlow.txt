@@ -1,0 +1,69 @@
+
+
+COMPLETED
+Exploration Target Selection
+        ↓
+NOW
+Action Selection
+        ↓
+NEXT
+Single Exploration Step
+        ↓
+THEN
+Exploration Coordinator / Closed Loop
+        ↓
+THEN
+Persistence
+
+========================================================================
+
+
+The new layer answers one question:
+We know WHICH STATE to explore.
+
+Now:
+
+WHICH UNEXPLORED ELIGIBLE ACTION
+should we execute from that state?
+
+===========================================================================
+
+
+======================The architecture====================================
+
+Selected ExplorationTarget
+        ↓
+Locate State in StateGraph
+        ↓
+Available Actions
+        ↓
+ActionFilter
+        ↓
+ExplorationMemory
+        ↓
+Unexplored Eligible Actions
+        ↓
+ActionSelectionStrategy
+        ↓
+Ranked Action Candidates
+        ↓
+Selected Next Action
+
+=================================================================================
+
+We should use the same separation pattern that worked for target selection:
+
+ExplorationMemory
+    → reports which actions were already executed
+
+ActionFilter
+    → reports which actions are allowed
+
+ActionCandidateSelector
+    → creates valid candidates
+
+ActionSelectionStrategy
+    → ranks candidates
+
+SelectedAction
+    → represents the decision

@@ -1,5 +1,8 @@
 from core.models.action import (
     Action,
+)
+
+from core.models.action_type import (
     ActionType
 )
 

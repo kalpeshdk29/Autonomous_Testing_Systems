@@ -19,7 +19,7 @@ import time
 import uiautomation as auto
 
 from core.models.action import Action
-from core.models.action import ActionType
+from core.models.action_type import ActionType
 
 
 class ActionExecutor:

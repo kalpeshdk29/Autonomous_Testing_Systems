@@ -58,3 +58,5 @@ class ExplorationResult:
     duration: float
 
     stop_reason: ExplorationStopReason
+
+    root_state_id: str | None = None

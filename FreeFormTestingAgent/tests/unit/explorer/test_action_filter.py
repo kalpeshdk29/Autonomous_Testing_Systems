@@ -6,9 +6,12 @@ from agent.explorer.default_action_filter import (
     DefaultActionFilter
 )
 
-from core.models.action import (
-    Action,
+from core.models.action_type import (
     ActionType
+)
+
+from core.models.action import (
+    Action
 )
 
 

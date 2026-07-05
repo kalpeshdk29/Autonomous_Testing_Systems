@@ -544,6 +544,7 @@ class BFSExplorer(Explorer):
             failures=context.total_failures,
             duration=duration,
             stop_reason=context.stop_reason,
+            root_state_id=root_id,
         )
 
     def _should_stop(self, context, start_time) -> bool:

@@ -1,17 +1,10 @@
-from enum import Enum
+
 from uuid import uuid4
 from datetime import datetime
 from pydantic import BaseModel, Field
+from core.models.action_type import ActionType
 
 
-class ActionType(str, Enum):
-    CLICK = "CLICK"
-    DOUBLE_CLICK = "DOUBLE_CLICK"
-    TEXT_INPUT = "TEXT_INPUT"
-    KEY_PRESS = "KEY_PRESS"
-    HOTKEY = "HOTKEY"
-    SCROLL = "SCROLL"
-    WAIT = "WAIT"
 
 
 class Action(BaseModel):
