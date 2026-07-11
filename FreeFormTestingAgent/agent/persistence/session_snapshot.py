@@ -8,45 +8,68 @@ Architecture:
 
 Exploration Runtime
         ↓
-Graph + Memory + Root State + Metadata
+Graph
++
+Memory
++
+Failure History
++
+Root State
++
+Lifecycle
++
+Metadata
         ↓
 ExplorationSessionSnapshot
 
 Important:
     This object does not read or write files.
 
-    It represents the complete runtime state required to save
+    It represents the complete runtime knowledge required to save
     and later resume an exploration session.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
-from core.graph.state_graph import StateGraph
+from core.graph.state_graph import (
+    StateGraph,
+)
+
+from agent.failure.failure_record import (
+    FailureRecord,
+)
 
 from agent.memory.exploration_memory import (
     ExplorationMemory,
+)
+
+from agent.persistence.session_status import (
+    SessionStatus,
 )
 
 
 @dataclass
 class ExplorationSessionSnapshot:
     """
-    Complete runtime snapshot of one exploration session.
+    Complete durable snapshot of one exploration session.
 
     Attributes
     ----------
     schema_version:
-        Persistence schema version used by this snapshot.
+        Persistence schema version.
 
     session_id:
-        Stable identifier for the exploration session.
+        Stable exploration session identifier.
 
     root_state_id:
         Root state used for replay and continuation.
 
+    status:
+        Durable lifecycle state.
+
     created_at:
-        Time when the session was originally created.
+        Original session creation time.
 
     updated_at:
         Time represented by this snapshot.
@@ -56,6 +79,13 @@ class ExplorationSessionSnapshot:
 
     memory:
         Complete ExplorationMemory.
+
+    failures:
+        Ordered structured failure history discovered during the
+        session.
+
+        A default empty list preserves compatibility with older
+        construction sites that do not yet supply failures.
     """
 
     schema_version: int
@@ -64,6 +94,8 @@ class ExplorationSessionSnapshot:
 
     root_state_id: str
 
+    status: SessionStatus
+
     created_at: datetime
 
     updated_at: datetime
@@ -71,3 +103,28 @@ class ExplorationSessionSnapshot:
     graph: StateGraph
 
     memory: ExplorationMemory
+
+    failures: list[
+        FailureRecord
+    ] = field(
+        default_factory=list
+    )
+
+    @property
+    def was_interrupted(
+        self,
+    ) -> bool:
+        """
+        Return whether this snapshot represents an unfinished
+        previous execution.
+
+        A persisted RUNNING session loaded by a new runtime means
+        the previous process stopped before recording a clean
+        terminal status.
+        """
+
+        return (
+            self.status
+            ==
+            SessionStatus.RUNNING
+        )

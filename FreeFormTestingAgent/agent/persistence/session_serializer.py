@@ -20,12 +20,12 @@ Graph Reconstruction
         ↓
 Memory Reconstruction
         ↓
+Failure Reconstruction
+        ↓
 ExplorationSessionSnapshot
 
 Important:
     This component does not perform file I/O.
-
-    Filesystem persistence belongs to JsonSessionRepository.
 """
 
 from datetime import datetime
@@ -40,6 +40,10 @@ from agent.persistence.session_snapshot import (
 
 from agent.persistence.state_graph_serializer import (
     StateGraphSerializer,
+)
+
+from agent.persistence.session_status import (
+    SessionStatus,
 )
 
 
@@ -59,24 +63,16 @@ class SessionSerializer:
         cls,
         snapshot: ExplorationSessionSnapshot,
     ) -> dict:
-        """
-        Convert a complete exploration session into
-        JSON-compatible data.
-
-        Raises
-        ------
-        ValueError:
-            If the snapshot schema version is unsupported.
-
-            If the root state does not exist in the graph.
-        """
 
         cls._validate_schema_version(
             snapshot.schema_version
         )
 
         cls._validate_root_state(
-            root_state_id=snapshot.root_state_id,
+            root_state_id=(
+                snapshot.root_state_id
+            ),
+
             graph=snapshot.graph,
         )
 
@@ -94,26 +90,46 @@ class SessionSerializer:
                     snapshot.root_state_id
                 ),
 
+                "status": (
+                    snapshot.status.value
+                ),
+
                 "created_at": (
-                    snapshot.created_at.isoformat()
+                    snapshot
+                    .created_at
+                    .isoformat()
                 ),
 
                 "updated_at": (
-                    snapshot.updated_at.isoformat()
+                    snapshot
+                    .updated_at
+                    .isoformat()
                 ),
             },
 
             "graph": (
-                StateGraphSerializer.serialize(
+                StateGraphSerializer
+                .serialize(
                     snapshot.graph
                 )
             ),
 
             "memory": (
-                DomainSerializer.serialize_memory(
+                DomainSerializer
+                .serialize_memory(
                     snapshot.memory
                 )
             ),
+
+            "failures": [
+                DomainSerializer
+                .serialize_failure(
+                    failure
+                )
+
+                for failure
+                in snapshot.failures
+            ],
         }
 
     # =========================================================
@@ -125,17 +141,6 @@ class SessionSerializer:
         cls,
         data: dict,
     ) -> ExplorationSessionSnapshot:
-        """
-        Reconstruct a complete exploration session.
-
-        Validation order:
-
-            1. schema version
-            2. required session metadata
-            3. graph reconstruction
-            4. root-state integrity
-            5. memory reconstruction
-        """
 
         schema_version = data.get(
             "schema_version"
@@ -153,8 +158,10 @@ class SessionSerializer:
             session_data,
             dict,
         ):
+
             raise ValueError(
-                "Serialized session metadata is missing."
+                "Serialized session metadata "
+                "is missing."
             )
 
         session_id = session_data.get(
@@ -165,48 +172,91 @@ class SessionSerializer:
             "root_state_id"
         )
 
-        created_at_value = session_data.get(
-            "created_at"
+        status_value = session_data.get(
+            "status"
         )
 
-        updated_at_value = session_data.get(
-            "updated_at"
+        created_at_value = (
+            session_data.get(
+                "created_at"
+            )
+        )
+
+        updated_at_value = (
+            session_data.get(
+                "updated_at"
+            )
         )
 
         if not session_id:
+
             raise ValueError(
-                "Serialized session_id is missing."
+                "Serialized session_id "
+                "is missing."
             )
 
         if not root_state_id:
+
             raise ValueError(
-                "Serialized root_state_id is missing."
+                "Serialized root_state_id "
+                "is missing."
             )
 
         if not created_at_value:
+
             raise ValueError(
-                "Serialized created_at is missing."
+                "Serialized created_at "
+                "is missing."
             )
 
         if not updated_at_value:
+
             raise ValueError(
-                "Serialized updated_at is missing."
+                "Serialized updated_at "
+                "is missing."
             )
 
-        graph = StateGraphSerializer.deserialize(
-            data.get(
-                "graph",
-                {},
+        if not status_value:
+
+            raise ValueError(
+                "Serialized session status "
+                "is missing."
+            )
+
+        try:
+
+            status = SessionStatus(
+                status_value
+            )
+
+        except ValueError as error:
+
+            raise ValueError(
+                "Unsupported session status: "
+                f"{status_value}."
+            ) from error
+
+        graph = (
+            StateGraphSerializer
+            .deserialize(
+                data.get(
+                    "graph",
+                    {},
+                )
             )
         )
 
         cls._validate_root_state(
-            root_state_id=root_state_id,
+            root_state_id=(
+                root_state_id
+            ),
+
             graph=graph,
         )
 
         memory = (
-            DomainSerializer.deserialize_memory(
+            DomainSerializer
+            .deserialize_memory(
                 data.get(
                     "memory",
                     {},
@@ -214,24 +264,63 @@ class SessionSerializer:
             )
         )
 
+        failures_data = data.get(
+            "failures",
+            [],
+        )
+
+        if not isinstance(
+            failures_data,
+            list,
+        ):
+
+            raise ValueError(
+                "Serialized failures must "
+                "be a list."
+            )
+
+        failures = [
+            DomainSerializer
+            .deserialize_failure(
+                failure_data
+            )
+
+            for failure_data
+            in failures_data
+        ]
+
         return ExplorationSessionSnapshot(
-            schema_version=schema_version,
-
-            session_id=session_id,
-
-            root_state_id=root_state_id,
-
-            created_at=datetime.fromisoformat(
-                created_at_value
+            schema_version=(
+                schema_version
             ),
 
-            updated_at=datetime.fromisoformat(
-                updated_at_value
+            session_id=(
+                session_id
+            ),
+
+            root_state_id=(
+                root_state_id
+            ),
+
+            status=status,
+
+            created_at=(
+                datetime.fromisoformat(
+                    created_at_value
+                )
+            ),
+
+            updated_at=(
+                datetime.fromisoformat(
+                    updated_at_value
+                )
             ),
 
             graph=graph,
 
             memory=memory,
+
+            failures=failures,
         )
 
     # =========================================================
@@ -243,18 +332,13 @@ class SessionSerializer:
         cls,
         schema_version,
     ) -> None:
-        """
-        Reject unsupported persistence schemas.
-
-        Version migration will be added later when more than one
-        schema version exists.
-        """
 
         if (
             schema_version
             !=
             cls.CURRENT_SCHEMA_VERSION
         ):
+
             raise ValueError(
                 "Unsupported session schema version: "
                 f"{schema_version}. "
@@ -267,9 +351,6 @@ class SessionSerializer:
         root_state_id: str,
         graph,
     ) -> None:
-        """
-        Ensure the replay root exists in the persisted graph.
-        """
 
         if (
             graph.get_state(
@@ -277,6 +358,7 @@ class SessionSerializer:
             )
             is None
         ):
+
             raise ValueError(
                 "Session root state does not exist "
                 "in StateGraph."

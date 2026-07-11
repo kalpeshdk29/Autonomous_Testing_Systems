@@ -48,6 +48,14 @@ import json
 
 from datetime import datetime
 
+from agent.failure.failure_record import (
+    FailureRecord,
+)
+
+from agent.failure.failure_type import (
+    FailureType,
+)
+
 from core.models.action import (
     Action,
 )
@@ -149,6 +157,86 @@ def create_test_state() -> ApplicationState:
         state_hash="hash-state-123",
     )
 
+
+def create_test_failure() -> FailureRecord:
+    """
+    Create a deterministic structured failure with nested runtime
+    objects.
+
+    This fixture proves persistence of:
+
+        - stable failure identity
+        - FailureType enum
+        - timestamp
+        - Action
+        - replay Transition
+        - screenshot path
+        - recoverability
+        - metadata
+    """
+
+    action = create_test_action()
+
+    replay_transition = Transition(
+        source_state="state-root",
+
+        target_state="state-123",
+
+        action=action,
+
+        success=True,
+
+        duration=1.5,
+    )
+
+    return FailureRecord(
+        failure_id="failure-123",
+
+        failure_type=(
+            FailureType
+            .ACTION_EXECUTION_FAILED
+        ),
+
+        message=(
+            "The selected action could not "
+            "be executed successfully."
+        ),
+
+        timestamp=datetime(
+            2026,
+            7,
+            10,
+            14,
+            30,
+            0,
+        ),
+
+        source_state_id="state-123",
+
+        action=action,
+
+        target_state_id="state-456",
+
+        replay_path=[
+            replay_transition,
+        ],
+
+        screenshot_path=(
+            "screenshots/failure-123.png"
+        ),
+
+        recoverable=True,
+
+        metadata={
+            "failure_reason": (
+                "ACTION_EXECUTION_FAILED"
+            ),
+
+            "duration": 2.75,
+
+            "attempt": 3,
+        },
+    )
 
 # =============================================================
 # ACTION TESTS
@@ -747,6 +835,295 @@ def test_loaded_memory_remains_mutable():
 
 
 # =============================================================
+# FAILURE RECORD TESTS
+# =============================================================
+
+
+def test_failure_serialization_is_json_compatible():
+    """
+    FailureRecord serialization must produce directly
+    JSON-compatible data.
+
+    This includes nested:
+
+        - FailureType
+        - datetime
+        - Action
+        - replay-path Transitions
+    """
+
+    failure = create_test_failure()
+
+    serialized = (
+        DomainSerializer
+        .serialize_failure(
+            failure
+        )
+    )
+
+    json_text = json.dumps(
+        serialized
+    )
+
+    assert json_text is not None
+
+    assert (
+        serialized["failure_id"]
+        ==
+        "failure-123"
+    )
+
+    assert (
+        serialized["failure_type"]
+        ==
+        FailureType
+        .ACTION_EXECUTION_FAILED
+        .value
+    )
+
+    assert (
+        serialized["timestamp"]
+        ==
+        "2026-07-10T14:30:00"
+    )
+
+    assert (
+        serialized["action"]["action_id"]
+        ==
+        "action-123"
+    )
+
+    assert len(
+        serialized["replay_path"]
+    ) == 1
+
+    assert (
+        serialized[
+            "replay_path"
+        ][0]["source_state"]
+        ==
+        "state-root"
+    )
+
+
+def test_failure_round_trip_preserves_all_fields():
+    """
+    Every persisted FailureRecord field must survive exactly.
+    """
+
+    original = create_test_failure()
+
+    serialized = (
+        DomainSerializer
+        .serialize_failure(
+            original
+        )
+    )
+
+    restored = (
+        DomainSerializer
+        .deserialize_failure(
+            serialized
+        )
+    )
+
+    assert isinstance(
+        restored,
+        FailureRecord,
+    )
+
+    assert (
+        restored.failure_id
+        ==
+        original.failure_id
+    )
+
+    assert (
+        restored.failure_type
+        ==
+        original.failure_type
+    )
+
+    assert isinstance(
+        restored.failure_type,
+        FailureType,
+    )
+
+    assert (
+        restored.message
+        ==
+        original.message
+    )
+
+    assert (
+        restored.timestamp
+        ==
+        original.timestamp
+    )
+
+    assert (
+        restored.source_state_id
+        ==
+        original.source_state_id
+    )
+
+    assert (
+        restored.target_state_id
+        ==
+        original.target_state_id
+    )
+
+    assert (
+        restored.screenshot_path
+        ==
+        original.screenshot_path
+    )
+
+    assert (
+        restored.recoverable
+        ==
+        original.recoverable
+    )
+
+    assert (
+        restored.metadata
+        ==
+        original.metadata
+    )
+
+
+def test_failure_round_trip_reconstructs_action():
+    """
+    Nested failure action must be restored as a real Action.
+    """
+
+    original = create_test_failure()
+
+    restored = (
+        DomainSerializer
+        .deserialize_failure(
+            DomainSerializer
+            .serialize_failure(
+                original
+            )
+        )
+    )
+
+    assert isinstance(
+        restored.action,
+        Action,
+    )
+
+    assert (
+        restored.action.action_id
+        ==
+        original.action.action_id
+    )
+
+    assert (
+        restored.action.action_type
+        ==
+        original.action.action_type
+    )
+
+    assert (
+        restored.action.timestamp
+        ==
+        original.action.timestamp
+    )
+
+
+def test_failure_round_trip_reconstructs_replay_path():
+    """
+    Replay context must be restored as real Transition objects.
+    """
+
+    original = create_test_failure()
+
+    restored = (
+        DomainSerializer
+        .deserialize_failure(
+            DomainSerializer
+            .serialize_failure(
+                original
+            )
+        )
+    )
+
+    assert len(
+        restored.replay_path
+    ) == 1
+
+    transition = (
+        restored.replay_path[0]
+    )
+
+    assert isinstance(
+        transition,
+        Transition,
+    )
+
+    assert (
+        transition.source_state
+        ==
+        "state-root"
+    )
+
+    assert (
+        transition.target_state
+        ==
+        "state-123"
+    )
+
+    assert isinstance(
+        transition.action,
+        Action,
+    )
+
+    assert (
+        transition.duration
+        ==
+        1.5
+    )
+
+
+def test_invalid_serialized_failure_type_is_rejected():
+    """
+    Unknown persisted failure types must not be loaded silently.
+    """
+
+    serialized = (
+        DomainSerializer
+        .serialize_failure(
+            create_test_failure()
+        )
+    )
+
+    serialized["failure_type"] = (
+        "UNKNOWN_FAILURE_TYPE"
+    )
+
+    try:
+
+        DomainSerializer\
+            .deserialize_failure(
+                serialized
+            )
+
+        assert False, (
+            "Expected invalid failure type "
+            "to be rejected."
+        )
+
+    except ValueError as error:
+
+        assert (
+            "Unsupported failure type"
+            in
+            str(error)
+        )
+
+# =============================================================
 # COMPLETE TEST RUNNER
 # =============================================================
 
@@ -768,6 +1145,11 @@ def main():
         test_memory_serialization_is_deterministic,
         test_memory_round_trip_preserves_exploration_history,
         test_loaded_memory_remains_mutable,
+        test_failure_serialization_is_json_compatible,
+        test_failure_round_trip_preserves_all_fields,
+        test_failure_round_trip_reconstructs_action,
+        test_failure_round_trip_reconstructs_replay_path,
+        test_invalid_serialized_failure_type_is_rejected,
     ]
 
     print()

@@ -4,12 +4,17 @@ Structured result of one coordinator continuation run.
 
 from dataclasses import dataclass, field
 
+
 from agent.coordinator.coordinator_stop_reason import (
     CoordinatorStopReason,
 )
 
 from agent.explorer.exploration_step_result import (
     ExplorationStepResult,
+)
+
+from agent.failure.failure_record import (
+    FailureRecord,
 )
 
 
@@ -40,6 +45,21 @@ class CoordinatorResult:
 
         step_results:
             Ordered history of every attempted step.
+
+        failures:
+            Ordered structured failure records detected during
+            this coordinator run.
+
+            Important:
+                failed_steps and failures are intentionally
+                different concepts.
+
+                failed_steps:
+                    Counts all unsuccessful step results.
+
+                failures:
+                    Contains only failures recognized by the
+                    configured deterministic failure detector.
     """
 
     steps: int
@@ -54,6 +74,14 @@ class CoordinatorResult:
 
     stop_reason: CoordinatorStopReason
 
-    step_results: list[ExplorationStepResult] = field(
+    step_results: list[
+        ExplorationStepResult
+    ] = field(
+        default_factory=list
+    )
+
+    failures: list[
+        FailureRecord
+    ] = field(
         default_factory=list
     )

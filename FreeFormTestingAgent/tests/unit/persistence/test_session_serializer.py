@@ -51,6 +51,18 @@ import json
 
 from datetime import datetime
 
+from agent.failure.failure_record import (
+    FailureRecord,
+)
+
+from agent.failure.failure_type import (
+    FailureType,
+)
+
+from agent.persistence.session_status import (
+    SessionStatus,
+)
+
 from core.graph.state_graph import (
     StateGraph,
 )
@@ -282,16 +294,134 @@ def create_test_memory() -> ExplorationMemory:
 
     return memory
 
+def create_test_failures() -> list[
+    FailureRecord
+]:
+    """
+    Create deterministic ordered session failure history.
+    """
 
-def create_test_snapshot() -> ExplorationSessionSnapshot:
+    failure_1 = FailureRecord(
+        failure_id="failure-1",
+
+        failure_type=(
+            FailureType.REPLAY_FAILED
+        ),
+
+        message=(
+            "Replay could not restore "
+            "the source state."
+        ),
+
+        timestamp=datetime(
+            2026,
+            7,
+            10,
+            10,
+            0,
+            0,
+        ),
+
+        source_state_id="S0",
+
+        action=create_action(
+            "failure-action-1",
+            "buttonA",
+        ),
+
+        target_state_id=None,
+
+        replay_path=[],
+
+        screenshot_path=(
+            "screenshots/failure-1.png"
+        ),
+
+        recoverable=False,
+
+        metadata={
+            "failure_reason": (
+                "REPLAY_FAILED"
+            ),
+        },
+    )
+
+    failure_2 = FailureRecord(
+        failure_id="failure-2",
+
+        failure_type=(
+            FailureType
+            .ACTION_EXECUTION_FAILED
+        ),
+
+        message=(
+            "The selected action could "
+            "not be executed."
+        ),
+
+        timestamp=datetime(
+            2026,
+            7,
+            10,
+            10,
+            5,
+            0,
+        ),
+
+        source_state_id="S1",
+
+        action=create_action(
+            "failure-action-2",
+            "buttonC",
+        ),
+
+        target_state_id="S2",
+
+        replay_path=[],
+
+        screenshot_path=None,
+
+        recoverable=True,
+
+        metadata={
+            "failure_reason": (
+                "ACTION_EXECUTION_FAILED"
+            ),
+
+            "duration": 2.5,
+        },
+    )
+
+    return [
+        failure_1,
+        failure_2,
+    ]
+
+def create_test_snapshot(
+    status: SessionStatus = SessionStatus.CREATED,
+    failures=None,
+) -> ExplorationSessionSnapshot:
     """
     Create a complete deterministic session snapshot.
+
+    Parameters
+    ----------
+    status:
+        Durable lifecycle status stored by the snapshot.
     """
 
     return ExplorationSessionSnapshot(
-        schema_version=(SessionSerializer.CURRENT_SCHEMA_VERSION),
+        schema_version=(
+            SessionSerializer
+            .CURRENT_SCHEMA_VERSION
+        ),
+
         session_id="session-123",
+
         root_state_id="S0",
+
+        status=status,
+
         created_at=datetime(
             2026,
             7,
@@ -300,6 +430,7 @@ def create_test_snapshot() -> ExplorationSessionSnapshot:
             0,
             0,
         ),
+
         updated_at=datetime(
             2026,
             7,
@@ -308,8 +439,16 @@ def create_test_snapshot() -> ExplorationSessionSnapshot:
             30,
             45,
         ),
+
         graph=create_test_graph(),
+
         memory=create_test_memory(),
+
+        failures=(
+            failures
+            if failures is not None
+            else []
+        ),
     )
 
 
@@ -404,19 +543,47 @@ def test_serialized_session_has_expected_structure():
 
     snapshot = create_test_snapshot()
 
-    serialized = SessionSerializer.serialize(snapshot)
+    serialized = SessionSerializer.serialize(
+        snapshot
+    )
 
     assert set(serialized.keys()) == {
         "schema_version",
         "session",
         "graph",
         "memory",
+        "failures",
     }
 
-    assert serialized["session"]["session_id"] == "session-123"
+    assert set(
+        serialized["session"].keys()
+    ) == {
+        "session_id",
+        "root_state_id",
+        "status",
+        "created_at",
+        "updated_at",
+    }
 
-    assert serialized["session"]["root_state_id"] == "S0"
+    assert (
+        serialized["session"]["session_id"]
+        ==
+        "session-123"
+    )
 
+    assert (
+        serialized["session"]["root_state_id"]
+        ==
+        "S0"
+    )
+
+    assert (
+        serialized["session"]["status"]
+        ==
+        SessionStatus.CREATED.value
+    )
+
+    assert serialized["failures"] == []
 
 # =============================================================
 # METADATA ROUND-TRIP TESTS
@@ -482,6 +649,224 @@ def test_session_round_trip_preserves_timestamps():
 
     assert restored.updated_at == original.updated_at
 
+
+# =============================================================
+# SESSION LIFECYCLE ROUND-TRIP TESTS
+# =============================================================
+
+
+def test_created_status_round_trip():
+    """
+    CREATED lifecycle status must survive persistence.
+    """
+
+    snapshot = create_test_snapshot(
+        status=SessionStatus.CREATED
+    )
+
+    serialized = (
+        SessionSerializer.serialize(
+            snapshot
+        )
+    )
+
+    restored = (
+        SessionSerializer.deserialize(
+            serialized
+        )
+    )
+
+    assert (
+        restored.status
+        ==
+        SessionStatus.CREATED
+    )
+
+
+def test_running_status_round_trip():
+    """
+    RUNNING lifecycle status must survive persistence.
+    """
+
+    snapshot = create_test_snapshot(
+        status=SessionStatus.RUNNING
+    )
+
+    serialized = (
+        SessionSerializer.serialize(
+            snapshot
+        )
+    )
+
+    restored = (
+        SessionSerializer.deserialize(
+            serialized
+        )
+    )
+
+    assert (
+        restored.status
+        ==
+        SessionStatus.RUNNING
+    )
+
+
+def test_completed_status_round_trip():
+    """
+    COMPLETED lifecycle status must survive persistence.
+    """
+
+    snapshot = create_test_snapshot(
+        status=SessionStatus.COMPLETED
+    )
+
+    serialized = (
+        SessionSerializer.serialize(
+            snapshot
+        )
+    )
+
+    restored = (
+        SessionSerializer.deserialize(
+            serialized
+        )
+    )
+
+    assert (
+        restored.status
+        ==
+        SessionStatus.COMPLETED
+    )
+
+
+def test_failed_status_round_trip():
+    """
+    FAILED lifecycle status must survive persistence.
+    """
+
+    snapshot = create_test_snapshot(
+        status=SessionStatus.FAILED
+    )
+
+    serialized = (
+        SessionSerializer.serialize(
+            snapshot
+        )
+    )
+
+    restored = (
+        SessionSerializer.deserialize(
+            serialized
+        )
+    )
+
+    assert (
+        restored.status
+        ==
+        SessionStatus.FAILED
+    )
+
+# =============================================================
+# INTERRUPTION DETECTION TESTS
+# =============================================================
+
+
+def test_running_snapshot_is_detected_as_interrupted():
+    """
+    A RUNNING snapshot loaded by a new runtime represents an
+    unfinished previous execution.
+    """
+
+    snapshot = create_test_snapshot(
+        status=SessionStatus.RUNNING
+    )
+
+    serialized = (
+        SessionSerializer.serialize(
+            snapshot
+        )
+    )
+
+    restored = (
+        SessionSerializer.deserialize(
+            serialized
+        )
+    )
+
+    assert restored.was_interrupted
+
+
+def test_created_snapshot_is_not_interrupted():
+    """
+    A session that never started is not an interrupted execution.
+    """
+
+    snapshot = create_test_snapshot(
+        status=SessionStatus.CREATED
+    )
+
+    serialized = (
+        SessionSerializer.serialize(
+            snapshot
+        )
+    )
+
+    restored = (
+        SessionSerializer.deserialize(
+            serialized
+        )
+    )
+
+    assert not restored.was_interrupted
+
+
+def test_completed_snapshot_is_not_interrupted():
+    """
+    A cleanly completed session is not interrupted.
+    """
+
+    snapshot = create_test_snapshot(
+        status=SessionStatus.COMPLETED
+    )
+
+    serialized = (
+        SessionSerializer.serialize(
+            snapshot
+        )
+    )
+
+    restored = (
+        SessionSerializer.deserialize(
+            serialized
+        )
+    )
+
+    assert not restored.was_interrupted
+
+
+def test_failed_snapshot_is_not_interrupted():
+    """
+    A terminally failed session has a known ending and therefore
+    is not classified as an unexpected interruption.
+    """
+
+    snapshot = create_test_snapshot(
+        status=SessionStatus.FAILED
+    )
+
+    serialized = (
+        SessionSerializer.serialize(
+            snapshot
+        )
+    )
+
+    restored = (
+        SessionSerializer.deserialize(
+            serialized
+        )
+    )
+
+    assert not restored.was_interrupted
 
 # =============================================================
 # GRAPH ROUND-TRIP TESTS
@@ -671,6 +1056,218 @@ def test_loaded_memory_remains_mutable():
 
 
 # =============================================================
+# FAILURE HISTORY ROUND-TRIP TESTS
+# =============================================================
+
+
+def test_session_round_trip_preserves_failure_history():
+    """
+    Complete ordered failure history must survive persistence.
+    """
+
+    original_failures = (
+        create_test_failures()
+    )
+
+    snapshot = create_test_snapshot(
+        failures=original_failures
+    )
+
+    serialized = (
+        SessionSerializer.serialize(
+            snapshot
+        )
+    )
+
+    restored = (
+        SessionSerializer.deserialize(
+            serialized
+        )
+    )
+
+    assert len(
+        restored.failures
+    ) == 2
+
+    assert (
+        restored.failures[0]
+        .failure_id
+        ==
+        "failure-1"
+    )
+
+    assert (
+        restored.failures[1]
+        .failure_id
+        ==
+        "failure-2"
+    )
+
+
+def test_session_round_trip_preserves_failure_types():
+    """
+    Persisted failure types must return as real FailureType enums.
+    """
+
+    snapshot = create_test_snapshot(
+        failures=create_test_failures()
+    )
+
+    restored = (
+        SessionSerializer.deserialize(
+            SessionSerializer.serialize(
+                snapshot
+            )
+        )
+    )
+
+    assert (
+        restored.failures[0]
+        .failure_type
+        ==
+        FailureType.REPLAY_FAILED
+    )
+
+    assert (
+        restored.failures[1]
+        .failure_type
+        ==
+        FailureType
+        .ACTION_EXECUTION_FAILED
+    )
+
+    assert isinstance(
+        restored.failures[0]
+        .failure_type,
+        FailureType,
+    )
+
+
+def test_session_round_trip_preserves_failure_details():
+    """
+    Failure identity, context, evidence, and metadata must survive.
+    """
+
+    snapshot = create_test_snapshot(
+        failures=create_test_failures()
+    )
+
+    restored = (
+        SessionSerializer.deserialize(
+            SessionSerializer.serialize(
+                snapshot
+            )
+        )
+    )
+
+    failure = restored.failures[1]
+
+    assert (
+        failure.source_state_id
+        ==
+        "S1"
+    )
+
+    assert (
+        failure.target_state_id
+        ==
+        "S2"
+    )
+
+    assert isinstance(
+        failure.action,
+        Action,
+    )
+
+    assert (
+        failure.action.target
+        ==
+        "buttonC"
+    )
+
+    assert failure.recoverable
+
+    assert (
+        failure.metadata[
+            "failure_reason"
+        ]
+        ==
+        "ACTION_EXECUTION_FAILED"
+    )
+
+    assert (
+        failure.metadata["duration"]
+        ==
+        2.5
+    )
+
+
+def test_old_session_without_failures_loads_empty_history():
+    """
+    Sessions created before failure persistence must remain
+    loadable.
+
+    Missing failures is intentionally interpreted as an empty
+    history.
+    """
+
+    snapshot = create_test_snapshot()
+
+    serialized = (
+        SessionSerializer.serialize(
+            snapshot
+        )
+    )
+
+    del serialized["failures"]
+
+    restored = (
+        SessionSerializer.deserialize(
+            serialized
+        )
+    )
+
+    assert restored.failures == []
+
+
+def test_invalid_serialized_failures_collection_is_rejected():
+    """
+    Persisted failure history must be a list.
+    """
+
+    snapshot = create_test_snapshot()
+
+    serialized = (
+        SessionSerializer.serialize(
+            snapshot
+        )
+    )
+
+    serialized["failures"] = {
+        "failure-1": {},
+    }
+
+    try:
+
+        SessionSerializer.deserialize(
+            serialized
+        )
+
+        assert False, (
+            "Expected invalid failures "
+            "collection to be rejected."
+        )
+
+    except ValueError as error:
+
+        assert (
+            "failures"
+            in
+            str(error)
+        )
+
+
+# =============================================================
 # INVALID SCHEMA TESTS
 # =============================================================
 
@@ -831,6 +1428,72 @@ def test_missing_updated_at_is_rejected():
 
         assert "updated_at" in str(error)
 
+def test_missing_status_is_rejected():
+    """
+    Durable lifecycle status is required.
+    """
+
+    snapshot = create_test_snapshot()
+
+    serialized = (
+        SessionSerializer.serialize(
+            snapshot
+        )
+    )
+
+    serialized["session"]["status"] = None
+
+    try:
+
+        SessionSerializer.deserialize(
+            serialized
+        )
+
+        assert False, (
+            "Expected missing status "
+            "to raise ValueError."
+        )
+
+    except ValueError as error:
+
+        assert "status" in str(error)
+
+
+def test_invalid_status_is_rejected():
+    """
+    Unknown lifecycle values must not be loaded silently.
+    """
+
+    snapshot = create_test_snapshot()
+
+    serialized = (
+        SessionSerializer.serialize(
+            snapshot
+        )
+    )
+
+    serialized["session"]["status"] = (
+        "UNKNOWN_STATUS"
+    )
+
+    try:
+
+        SessionSerializer.deserialize(
+            serialized
+        )
+
+        assert False, (
+            "Expected unsupported status "
+            "to raise ValueError."
+        )
+
+    except ValueError as error:
+
+        assert (
+            "Unsupported session status"
+            in
+            str(error)
+        )
 
 # =============================================================
 # ROOT-STATE INTEGRITY TESTS
@@ -890,27 +1553,50 @@ def main():
     """
 
     tests = [
-        test_session_serialization_is_json_compatible,
-        test_serialized_session_has_expected_structure,
-        test_session_round_trip_preserves_schema_version,
-        test_session_round_trip_preserves_session_id,
-        test_session_round_trip_preserves_root_state_id,
-        test_session_round_trip_preserves_timestamps,
-        test_session_round_trip_preserves_graph,
-        test_session_round_trip_preserves_memory,
-        test_coverage_is_identical_after_round_trip,
-        test_loaded_graph_remains_mutable,
-        test_loaded_memory_remains_mutable,
-        test_unsupported_schema_version_is_rejected,
-        test_snapshot_with_unsupported_schema_is_rejected,
-        test_missing_session_metadata_is_rejected,
-        test_missing_session_id_is_rejected,
-        test_missing_root_state_id_is_rejected,
-        test_missing_created_at_is_rejected,
-        test_missing_updated_at_is_rejected,
-        test_serialization_rejects_root_missing_from_graph,
-        test_deserialization_rejects_root_missing_from_graph,
-    ]
+            test_session_serialization_is_json_compatible,
+            test_serialized_session_has_expected_structure,
+
+            test_session_round_trip_preserves_schema_version,
+            test_session_round_trip_preserves_session_id,
+            test_session_round_trip_preserves_root_state_id,
+            test_session_round_trip_preserves_timestamps,
+
+            test_created_status_round_trip,
+            test_running_status_round_trip,
+            test_completed_status_round_trip,
+            test_failed_status_round_trip,
+
+            test_running_snapshot_is_detected_as_interrupted,
+            test_created_snapshot_is_not_interrupted,
+            test_completed_snapshot_is_not_interrupted,
+            test_failed_snapshot_is_not_interrupted,
+
+            test_session_round_trip_preserves_graph,
+            test_session_round_trip_preserves_memory,
+            test_coverage_is_identical_after_round_trip,
+
+            test_loaded_graph_remains_mutable,
+            test_loaded_memory_remains_mutable,
+
+            test_unsupported_schema_version_is_rejected,
+            test_snapshot_with_unsupported_schema_is_rejected,
+
+            test_missing_session_metadata_is_rejected,
+            test_missing_session_id_is_rejected,
+            test_missing_root_state_id_is_rejected,
+            test_missing_status_is_rejected,
+            test_invalid_status_is_rejected,
+            test_missing_created_at_is_rejected,
+            test_missing_updated_at_is_rejected,
+
+            test_serialization_rejects_root_missing_from_graph,
+            test_deserialization_rejects_root_missing_from_graph,
+            test_session_round_trip_preserves_failure_history,
+            test_session_round_trip_preserves_failure_types,
+            test_session_round_trip_preserves_failure_details,
+            test_old_session_without_failures_loads_empty_history,
+            test_invalid_serialized_failures_collection_is_rejected,
+        ]
 
     print()
 

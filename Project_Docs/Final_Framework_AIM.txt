@@ -1,0 +1,25 @@
+Application
+    ↓
+UI Observation
+    ↓
+Deterministic State Graph
+    ↓
+Persistent Application Context
+    ↓
+┌─────────────────────────────────────┐
+│                                     │
+│ Deterministic Exploration           │
+│ AI-Guided Exploration               │
+│ Goal-Based Exploration              │
+│ Risk-Based Exploration              │
+│ Regression Exploration              │
+│                                     │
+└─────────────────────────────────────┘
+    ↓
+Failure Detection
+    ↓
+Automatic Reproduction
+    ↓
+Evidence Collection
+    ↓
+Test Report

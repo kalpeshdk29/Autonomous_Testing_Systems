@@ -19,16 +19,31 @@ Domain Reconstruction
         ↓
 Runtime Domain Object
 
+Supported Objects:
+
+    - Action
+    - ApplicationState
+    - Transition
+    - ExplorationMemory
+    - FailureRecord
+
 Important:
     This component does not read or write files.
-
-    Filesystem persistence belongs to the future
-    JsonSessionRepository.
 """
+
+from datetime import datetime
 
 from core.models.action import Action
 from core.models.state import ApplicationState
 from core.models.transition import Transition
+
+from agent.failure.failure_record import (
+    FailureRecord,
+)
+
+from agent.failure.failure_type import (
+    FailureType,
+)
 
 from agent.memory.exploration_memory import (
     ExplorationMemory,
@@ -37,16 +52,7 @@ from agent.memory.exploration_memory import (
 
 class DomainSerializer:
     """
-    Serialize and deserialize core exploration domain objects.
-
-    Supported objects:
-
-        - Action
-        - ApplicationState
-        - Transition
-        - ExplorationMemory
-
-    The serializer returns only JSON-compatible structures.
+    Serialize and deserialize exploration domain objects.
     """
 
     # =========================================================
@@ -57,14 +63,6 @@ class DomainSerializer:
     def serialize_action(
         action: Action,
     ) -> dict:
-        """
-        Convert an Action into a JSON-compatible dictionary.
-
-        Pydantic JSON mode converts:
-
-            ActionType → string value
-            datetime   → ISO-8601 string
-        """
 
         return action.model_dump(
             mode="json"
@@ -74,14 +72,6 @@ class DomainSerializer:
     def deserialize_action(
         data: dict,
     ) -> Action:
-        """
-        Reconstruct an Action from serialized data.
-
-        Pydantic restores:
-
-            string → ActionType
-            ISO string → datetime
-        """
 
         return Action.model_validate(
             data
@@ -95,13 +85,6 @@ class DomainSerializer:
     def serialize_state(
         state: ApplicationState,
     ) -> dict:
-        """
-        Convert an ApplicationState into a JSON-compatible
-        dictionary.
-
-        Nested UIControl and Action objects are serialized by
-        Pydantic.
-        """
 
         return state.model_dump(
             mode="json"
@@ -111,10 +94,6 @@ class DomainSerializer:
     def deserialize_state(
         data: dict,
     ) -> ApplicationState:
-        """
-        Reconstruct an ApplicationState including nested controls
-        and available actions.
-        """
 
         return ApplicationState.model_validate(
             data
@@ -128,12 +107,6 @@ class DomainSerializer:
     def serialize_transition(
         transition: Transition,
     ) -> dict:
-        """
-        Convert a Transition into a JSON-compatible dictionary.
-
-        Transition is a dataclass, so its nested Action is
-        serialized explicitly.
-        """
 
         return {
             "source_state": (
@@ -145,23 +118,25 @@ class DomainSerializer:
             ),
 
             "action": (
-                DomainSerializer.serialize_action(
+                DomainSerializer
+                .serialize_action(
                     transition.action
                 )
             ),
 
-            "success": transition.success,
+            "success": (
+                transition.success
+            ),
 
-            "duration": transition.duration,
+            "duration": (
+                transition.duration
+            ),
         }
 
     @staticmethod
     def deserialize_transition(
         data: dict,
     ) -> Transition:
-        """
-        Reconstruct a Transition with a real Action object.
-        """
 
         return Transition(
             source_state=data[
@@ -173,7 +148,8 @@ class DomainSerializer:
             ],
 
             action=(
-                DomainSerializer.deserialize_action(
+                DomainSerializer
+                .deserialize_action(
                     data["action"]
                 )
             ),
@@ -197,19 +173,6 @@ class DomainSerializer:
     def serialize_memory(
         memory: ExplorationMemory,
     ) -> dict:
-        """
-        Convert ExplorationMemory into JSON-compatible data.
-
-        Runtime:
-
-            defaultdict(set)
-
-        Serialized:
-
-            dict[str, list[str]]
-
-        Targets are sorted so saved output is deterministic.
-        """
 
         return {
             "visited_actions": {
@@ -222,7 +185,9 @@ class DomainSerializer:
                     action_targets,
                 )
 
-                in memory.visited_actions.items()
+                in memory
+                .visited_actions
+                .items()
             }
         }
 
@@ -230,14 +195,6 @@ class DomainSerializer:
     def deserialize_memory(
         data: dict,
     ) -> ExplorationMemory:
-        """
-        Reconstruct ExplorationMemory through its public API.
-
-        We deliberately do not replace visited_actions directly.
-
-        Using mark_executed() preserves the runtime structure and
-        keeps reconstruction independent from internal storage.
-        """
 
         memory = ExplorationMemory()
 
@@ -259,3 +216,218 @@ class DomainSerializer:
                 )
 
         return memory
+
+    # =========================================================
+    # FAILURE RECORD
+    # =========================================================
+
+    @staticmethod
+    def serialize_failure(
+        failure: FailureRecord,
+    ) -> dict:
+        """
+        Convert one FailureRecord into JSON-compatible data.
+
+        Nested replay transitions and actions are serialized
+        explicitly.
+        """
+
+        if not isinstance(
+            failure,
+            FailureRecord,
+        ):
+
+            raise ValueError(
+                "failure must be a "
+                "FailureRecord."
+            )
+
+        return {
+            "failure_id": (
+                failure.failure_id
+            ),
+
+            "failure_type": (
+                failure.failure_type.value
+            ),
+
+            "message": (
+                failure.message
+            ),
+
+            "timestamp": (
+                failure.timestamp.isoformat()
+            ),
+
+            "source_state_id": (
+                failure.source_state_id
+            ),
+
+            "action": (
+                DomainSerializer
+                .serialize_action(
+                    failure.action
+                )
+                if failure.action
+                is not None
+                else None
+            ),
+
+            "target_state_id": (
+                failure.target_state_id
+            ),
+
+            "replay_path": [
+                DomainSerializer
+                .serialize_transition(
+                    transition
+                )
+
+                for transition
+                in failure.replay_path
+            ],
+
+            "screenshot_path": (
+                failure.screenshot_path
+            ),
+
+            "recoverable": (
+                failure.recoverable
+            ),
+
+            "metadata": (
+                failure.metadata
+            ),
+        }
+
+    @staticmethod
+    def deserialize_failure(
+        data: dict,
+    ) -> FailureRecord:
+        """
+        Reconstruct one FailureRecord.
+
+        Restores:
+
+            string
+                → FailureType
+
+            ISO timestamp
+                → datetime
+
+            action dictionary
+                → Action
+
+            replay-path dictionaries
+                → Transition objects
+        """
+
+        if not isinstance(
+            data,
+            dict,
+        ):
+
+            raise ValueError(
+                "Serialized failure must "
+                "be a dictionary."
+            )
+
+        failure_type_value = data.get(
+            "failure_type"
+        )
+
+        try:
+
+            failure_type = FailureType(
+                failure_type_value
+            )
+
+        except (
+            ValueError,
+            TypeError,
+        ) as error:
+
+            raise ValueError(
+                "Unsupported failure type: "
+                f"{failure_type_value}."
+            ) from error
+
+        timestamp_value = data.get(
+            "timestamp"
+        )
+
+        if not timestamp_value:
+
+            raise ValueError(
+                "Serialized failure timestamp "
+                "is missing."
+            )
+
+        action_data = data.get(
+            "action"
+        )
+
+        return FailureRecord(
+            failure_id=data.get(
+                "failure_id"
+            ),
+
+            failure_type=(
+                failure_type
+            ),
+
+            message=data.get(
+                "message"
+            ),
+
+            timestamp=(
+                datetime.fromisoformat(
+                    timestamp_value
+                )
+            ),
+
+            source_state_id=data.get(
+                "source_state_id"
+            ),
+
+            action=(
+                DomainSerializer
+                .deserialize_action(
+                    action_data
+                )
+                if action_data
+                is not None
+                else None
+            ),
+
+            target_state_id=data.get(
+                "target_state_id"
+            ),
+
+            replay_path=[
+                DomainSerializer
+                .deserialize_transition(
+                    transition_data
+                )
+
+                for transition_data
+                in data.get(
+                    "replay_path",
+                    [],
+                )
+            ],
+
+            screenshot_path=data.get(
+                "screenshot_path"
+            ),
+
+            recoverable=data.get(
+                "recoverable",
+                False,
+            ),
+
+            metadata=data.get(
+                "metadata",
+                {},
+            ),
+        )

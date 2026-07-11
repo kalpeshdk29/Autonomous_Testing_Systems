@@ -1,0 +1,7 @@
+Observe
+Explore
+Replay
+Persist
+Resume
+Detect failures
+Produce evidence
