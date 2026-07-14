@@ -141,14 +141,16 @@ class StateGraph:
         action,
         target_id,
         success=True,
-        duration=0.0):
+        duration=0.0,
+        failure_reason=None):
 
         transition = Transition(
             source_state=source_id,
             target_state=target_id,
             action=action,
             success=success,
-            duration=duration
+            duration=duration,
+            failure_reason=failure_reason
         )
 
         self.edges[source_id].append(transition)
@@ -325,4 +327,36 @@ class StateGraph:
             self,
             source_state,
             target_state
+        )
+    
+    def total_states(self):
+
+        return len(self.states)
+
+
+    def total_transitions(self):
+
+        return sum(
+            len(edges)
+            for edges in self.edges.values()
+        )
+
+
+    def successful_transitions(self):
+
+        return sum(
+            1
+            for edges in self.edges.values()
+            for transition in edges
+            if transition.success
+        )
+
+
+    def failed_transitions(self):
+
+        return sum(
+            1
+            for edges in self.edges.values()
+            for transition in edges
+            if not transition.success
         )

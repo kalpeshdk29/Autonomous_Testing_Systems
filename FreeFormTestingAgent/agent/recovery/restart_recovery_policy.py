@@ -63,7 +63,10 @@ class RestartRecoveryPolicy(
         context,
     ):
 
-        execution = self._executor.execute(context)
+        execution = self._executor.execute(
+            failure,
+            context,
+        )
 
         return RecoveryResult(
             success=execution.success,

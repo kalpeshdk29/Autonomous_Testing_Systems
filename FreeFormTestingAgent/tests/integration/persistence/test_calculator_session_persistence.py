@@ -67,6 +67,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+from agent.persistence.session_status import SessionStatus
 from tests.fixtures.calculator_fixture import (
     CalculatorFixture,
 )
@@ -413,12 +414,12 @@ def test_calculator_session_persistence():
             )
 
             limits = ExplorationLimits(
-                max_states=20,
-                max_actions=12,
-                max_transitions=20,
-                max_depth=2,
-                max_duration=120.0,
-                max_failures=10,
+                max_states=5000,
+                max_actions=5000,
+                max_transitions=5000,
+                max_depth=1000,
+                max_duration=36000,
+                max_failures=100,
             )
 
             explorer = BFSExplorer(
@@ -514,10 +515,12 @@ def test_calculator_session_persistence():
                 schema_version=(SessionSerializer.CURRENT_SCHEMA_VERSION),
                 session_id=SESSION_ID,
                 root_state_id=(root_state_id),
+                status=(SessionStatus.CREATED),
                 created_at=(snapshot_time),
                 updated_at=(snapshot_time),
                 graph=original_graph,
                 memory=original_memory,
+                failures=[],
             )
 
             # =================================================

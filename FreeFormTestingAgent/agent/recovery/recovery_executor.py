@@ -37,6 +37,9 @@ from agent.recovery.recovery_context import (
 from agent.recovery.recovery_execution_result import (
     RecoveryExecutionResult,
 )
+from agent.failure.failure_record import (
+    FailureRecord,
+)
 
 
 class RecoveryExecutor:
@@ -46,6 +49,7 @@ class RecoveryExecutor:
 
     def execute(
         self,
+        failure: FailureRecord,
         context: RecoveryContext,
     ) -> RecoveryExecutionResult:
 
@@ -53,15 +57,27 @@ class RecoveryExecutor:
 
         try:
 
-            context.ui_adapter.launch_application(
-                context.executable
-            )
-
             window = (
-                context.ui_adapter.connect_window(
-                    context.window_title
+                context.replay_engine.replay(
+
+                    executable=context.executable,
+
+                    window_title=context.window_title,
+
+                    source_state=context.root_state_id,
+
+                    target_state=failure.source_state_id,
                 )
             )
+
+            if window is None:
+
+                return RecoveryExecutionResult(
+                    success=False,
+                    window=None,
+                    duration=...,
+                    error_message="Replay failed.",
+                )
 
             return RecoveryExecutionResult(
 

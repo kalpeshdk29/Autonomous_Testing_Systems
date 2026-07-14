@@ -113,3 +113,36 @@ class ExplorationMemory:
                 )
 
         return unexplored
+    
+    def total_explored_actions(
+        self,
+    ):
+
+        total = 0
+
+        for actions in self._executed_actions.values():
+
+            total += len(actions)
+
+        return total
+
+
+    def total_remaining_actions(
+        self,
+    ):
+
+        remaining = 0
+
+        for state in self._states.values():
+
+            executed = self._executed_actions.get(
+                state.state_hash,
+                set(),
+            )
+
+            remaining += (
+                len(state.available_actions)
+                - len(executed)
+            )
+
+        return remaining

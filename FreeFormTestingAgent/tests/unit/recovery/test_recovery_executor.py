@@ -14,6 +14,38 @@ from agent.recovery.recovery_executor import (
     RecoveryExecutor,
 )
 
+from agent.failure.failure_record import (
+    FailureRecord,
+)
+from agent.failure.failure_type import (
+    FailureType,
+)
+
+def make_failure():
+
+    return FailureRecord(
+
+        failure_type=(
+            FailureType.APPLICATION_DISAPPEARED
+        ),
+
+        message="Application disappeared.",
+
+        source_state_id="STATE-1",
+
+        action=None,
+
+        target_state_id=None,
+
+        replay_path=[],
+
+        screenshot_path=None,
+
+        recoverable=True,
+
+        metadata={},
+    )
+
 
 # ============================================================
 # Test Doubles
@@ -103,6 +135,8 @@ def make_context(
         graph=Dummy(),
 
         memory=Dummy(),
+
+        root_state_id="ROOT",
     )
 
 
@@ -117,7 +151,8 @@ def test_launch_is_called():
     executor = RecoveryExecutor()
 
     executor.execute(
-        make_context(adapter)
+        make_context(adapter),
+        make_context(adapter),
     )
 
     assert adapter.launch_calls == [

@@ -23,6 +23,7 @@ from agent.recovery.restart_recovery_policy import (
 )
 
 
+
 # ============================================================
 # Test Doubles
 # ============================================================
@@ -45,9 +46,10 @@ class FakeRecoveryExecutor:
 
     def execute(
         self,
+        failure,
         context,
     ):
-
+        self.failure = failure
         self.context = context
 
         return self.result
@@ -114,6 +116,8 @@ def make_context():
         graph=Dummy(),
 
         memory=Dummy(),
+
+        root_state_id = "ROOT"
     )
 
 

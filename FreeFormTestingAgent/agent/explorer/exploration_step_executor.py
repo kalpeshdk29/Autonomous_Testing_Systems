@@ -212,9 +212,25 @@ class ExplorationStepExecutor:
 
         if not execution_success:
 
+            transition = self.graph.add_transition(
+
+                source_state_id,
+
+                selected_action,
+
+                source_state_id,
+
+                success=False,
+
+                duration=action_duration,
+
+                failure_reason="ACTION_EXECUTION_FAILED",
+            )
+
             return ExplorationStepResult(
                 source_state_id=source_state_id,
                 selected_action=selected_action,
+                transition=transition,
                 replay_success=True,
                 execution_success=False,
                 duration=action_duration,

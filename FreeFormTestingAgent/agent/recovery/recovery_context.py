@@ -48,6 +48,8 @@ class RecoveryContext:
 
     memory: object
 
+    root_state_id: str
+
     def __post_init__(self):
 
         if (
@@ -74,6 +76,19 @@ class RecoveryContext:
 
             raise ValueError(
                 "window_title must be a non-empty string."
+            )
+        
+        if (
+            not isinstance(
+                self.root_state_id,
+                str,
+            )
+            or
+            not self.root_state_id.strip()
+        ):
+
+            raise ValueError(
+                "root_state_id must be a non-empty string."
             )
 
         for name in (
